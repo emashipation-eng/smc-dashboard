@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchAllSheetData, AllSheetData } from '../services/googleSheets'
+import { fetchAllSheetData } from '../services/googleSheets'
+import type { AllSheetData } from '../services/googleSheets'
 
 export function useSheetData() {
   return useQuery<AllSheetData, Error>({

@@ -1,4 +1,5 @@
-import { SPREADSHEET_ID, SHEET_RANGES, SheetKey } from '../config/sheets'
+import { SPREADSHEET_ID, SHEET_RANGES } from '../config/sheets'
+import type { SheetKey } from '../config/sheets'
 import {
   rowsToInventory, rowsToEnquiries, rowsToProduction,
   rowsToPurchases, rowsToPayments, rowsToExpenses,
