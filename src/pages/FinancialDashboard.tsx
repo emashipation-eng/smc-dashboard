@@ -1,5 +1,7 @@
 import Header from '../components/layout/Header'
 import MetricCard from '../components/cards/MetricCard'
+import RevenueChart from '../components/charts/RevenueChart'
+import ProfitTrend from '../components/charts/ProfitTrend'
 import { useFinancials } from '../hooks/useFinancials'
 import { formatCompactINR, formatPct } from '../utils/formatters'
 
@@ -52,6 +54,12 @@ export default function FinancialDashboard() {
             sub={`Out: ${formatCompactINR(metrics.gst.outputGST)} / In: ${formatCompactINR(metrics.gst.inputGST)}`}
             color="default"
           />
+        </div>
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <RevenueChart data={metrics.monthlyRevenue} />
+          <ProfitTrend data={metrics.orderProfits} />
         </div>
       </div>
     </div>
