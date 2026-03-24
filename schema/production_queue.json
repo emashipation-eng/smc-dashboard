@@ -1,0 +1,15 @@
+{
+  "sheetName": "Production_Queue",
+  "columns": [
+    { "index": 0, "key": "JOB_ID",         "type": "string", "required": true, "fk": "Enquiry_Master.ENQUIRY_ID" },
+    { "index": 1, "key": "CLIENT_NAME",     "type": "string", "required": true },
+    { "index": 2, "key": "STAGE",           "type": "enum",   "required": true, "values": ["Cutting","Welding","Paint","QC","Dispatch"] },
+    { "index": 3, "key": "ASSIGNED_TO",     "type": "email",  "required": true },
+    { "index": 4, "key": "STATUS",          "type": "enum",   "required": true, "values": ["Pending","In-Progress","Complete"] },
+    { "index": 5, "key": "START_DATE",      "type": "date",   "required": false },
+    { "index": 6, "key": "DUE_DATE",        "type": "date",   "required": false },
+    { "index": 7, "key": "ESTIMATED_HOURS", "type": "number", "required": false },
+    { "index": 8, "key": "ACTUAL_HOURS",    "type": "number", "required": false },
+    { "index": 9, "key": "WEIGHT_KG",       "type": "number", "required": false }
+  ]
+}

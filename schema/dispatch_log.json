@@ -1,0 +1,21 @@
+{
+  "sheetName": "Dispatch_Log",
+  "columns": [
+    { "index": 0,  "key": "DISPATCH_ID",      "type": "string", "required": true, "format": "DSP-\\d{6}-\\d{4}" },
+    { "index": 1,  "key": "DATE",             "type": "date",   "required": true },
+    { "index": 2,  "key": "JOB_REF",          "type": "string", "required": true, "fk": "Production_Queue.JOB_ID" },
+    { "index": 3,  "key": "CLIENT_NAME",      "type": "string", "required": true },
+    { "index": 4,  "key": "DELIVERY_MODE",    "type": "enum",   "required": true, "values": ["Self-Pickup","By Road","By Rail","By Air"] },
+    { "index": 5,  "key": "DELIVERY_ADDRESS", "type": "string", "required": true },
+    { "index": 6,  "key": "CHALLAN_NO",       "type": "string", "required": true },
+    { "index": 7,  "key": "VEHICLE_NO",       "type": "string", "required": false },
+    { "index": 8,  "key": "TRANSPORTER",      "type": "string", "required": false },
+    { "index": 9,  "key": "FREIGHT_COST",     "type": "number", "required": false },
+    { "index": 10, "key": "WEIGHT_KG",        "type": "number", "required": false },
+    { "index": 11, "key": "NO_OF_PACKAGES",   "type": "number", "required": false },
+    { "index": 12, "key": "RECEIVED_BY",      "type": "string", "required": false },
+    { "index": 13, "key": "RECEIPT_DATE",     "type": "date",   "required": false },
+    { "index": 14, "key": "POD_LINK",         "type": "url",    "required": false },
+    { "index": 15, "key": "STATUS",           "type": "enum",   "required": true, "values": ["In-Transit","Delivered","Returned"] }
+  ]
+}

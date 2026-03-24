@@ -1,0 +1,10 @@
+{
+  "sheetName": "Price_Registry",
+  "columns": [
+    { "index": 0, "key": "MATERIAL_CODE",  "type": "string", "required": true, "fk": "Master_Inventory.ITEM_ID" },
+    { "index": 1, "key": "SUPPLIER",       "type": "string", "required": true },
+    { "index": 2, "key": "CURRENT_RATE",   "type": "number", "required": true, "min": 0 },
+    { "index": 3, "key": "LAST_UPDATED",   "type": "date",   "required": true, "format": "YYYY-MM-DD" },
+    { "index": 4, "key": "TAX_PCT",        "type": "number", "required": true, "min": 0, "max": 28 }
+  ]
+}

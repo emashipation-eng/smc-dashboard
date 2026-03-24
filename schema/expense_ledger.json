@@ -1,0 +1,16 @@
+{
+  "sheetName": "Expense_Ledger",
+  "columns": [
+    { "index": 0,  "key": "EXPENSE_ID",     "type": "string",  "required": true, "format": "EXP-\\d{6}-\\d{4}" },
+    { "index": 1,  "key": "DATE",           "type": "date",    "required": true },
+    { "index": 2,  "key": "CATEGORY",       "type": "enum",    "required": true, "values": ["Freight","Labor","Power","Consumables","Rent","Misc"] },
+    { "index": 3,  "key": "DESCRIPTION",    "type": "string",  "required": true },
+    { "index": 4,  "key": "AMOUNT",         "type": "number",  "required": true },
+    { "index": 5,  "key": "GST_APPLICABLE", "type": "boolean", "required": false },
+    { "index": 6,  "key": "GST_AMOUNT",     "type": "number",  "required": false },
+    { "index": 7,  "key": "PAID_TO",        "type": "string",  "required": false },
+    { "index": 8,  "key": "JOB_REF",        "type": "string",  "required": false },
+    { "index": 9,  "key": "PAYMENT_MODE",   "type": "enum",    "required": false, "values": ["Cash","Cheque","NEFT","UPI"] },
+    { "index": 10, "key": "APPROVED_BY",    "type": "string",  "required": false }
+  ]
+}

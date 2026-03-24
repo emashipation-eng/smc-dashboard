@@ -1,0 +1,21 @@
+{
+  "sheetName": "Purchase_Register",
+  "columns": [
+    { "index": 0,  "key": "PURCHASE_ID",    "type": "string", "required": true, "format": "PUR-\\d{6}-\\d{4}" },
+    { "index": 1,  "key": "DATE",           "type": "date",   "required": true },
+    { "index": 2,  "key": "SUPPLIER",       "type": "string", "required": true },
+    { "index": 3,  "key": "ITEM_ID",        "type": "string", "required": true, "fk": "Master_Inventory.ITEM_ID" },
+    { "index": 4,  "key": "ITEM_DESC",      "type": "string", "required": false },
+    { "index": 5,  "key": "QUANTITY",       "type": "number", "required": true, "min": 0 },
+    { "index": 6,  "key": "RATE",           "type": "number", "required": true, "min": 0 },
+    { "index": 7,  "key": "AMOUNT",         "type": "number", "required": true },
+    { "index": 8,  "key": "GST_PCT",        "type": "number", "required": true },
+    { "index": 9,  "key": "GST_AMOUNT",     "type": "number", "required": true },
+    { "index": 10, "key": "TOTAL",          "type": "number", "required": true },
+    { "index": 11, "key": "INVOICE_NO",     "type": "string", "required": false },
+    { "index": 12, "key": "INVOICE_DATE",   "type": "date",   "required": false },
+    { "index": 13, "key": "PAYMENT_STATUS", "type": "enum",   "required": true, "values": ["Pending","Paid","Partial"] },
+    { "index": 14, "key": "PAID_AMOUNT",    "type": "number", "required": false },
+    { "index": 15, "key": "JOB_REF",        "type": "string", "required": false }
+  ]
+}

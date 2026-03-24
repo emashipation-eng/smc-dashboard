@@ -1,0 +1,13 @@
+{
+  "sheetName": "Master_Inventory",
+  "columns": [
+    { "index": 0, "key": "ITEM_ID",        "type": "string",  "required": true,  "format": "SMC-\\d{4}" },
+    { "index": 1, "key": "ITEM_NAME",      "type": "string",  "required": true },
+    { "index": 2, "key": "CATEGORY",       "type": "enum",    "required": true,  "values": ["Raw Material","Finished Good","Consumable","Hardware"] },
+    { "index": 3, "key": "DIMENSIONS",     "type": "string",  "required": false },
+    { "index": 4, "key": "CURRENT_STOCK",  "type": "number",  "required": true,  "min": 0 },
+    { "index": 5, "key": "UOM",            "type": "enum",    "required": true,  "values": ["Kg","Pcs","Mtr","Sqft","Ltr"] },
+    { "index": 6, "key": "MIN_ALERT_LEVEL","type": "number",  "required": true,  "min": 0 },
+    { "index": 7, "key": "LOCATION_BIN",   "type": "string",  "required": false }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "sheetName": "Payment_Tracker",
+  "columns": [
+    { "index": 0, "key": "PAYMENT_ID",  "type": "string", "required": true, "format": "PAY-\\d{6}-\\d{4}" },
+    { "index": 1, "key": "DATE",        "type": "date",   "required": true },
+    { "index": 2, "key": "TYPE",        "type": "enum",   "required": true, "values": ["Advance","Progress","Final","Refund"] },
+    { "index": 3, "key": "ENQUIRY_REF", "type": "string", "required": true, "fk": "Enquiry_Master.ENQUIRY_ID" },
+    { "index": 4, "key": "CLIENT_NAME", "type": "string", "required": true },
+    { "index": 5, "key": "AMOUNT",      "type": "number", "required": true },
+    { "index": 6, "key": "MODE",        "type": "enum",   "required": true, "values": ["Cash","Cheque","NEFT","UPI","RTGS"] },
+    { "index": 7, "key": "REFERENCE",   "type": "string", "required": false },
+    { "index": 8, "key": "RECEIPT_NO",  "type": "string", "required": false },
+    { "index": 9, "key": "NOTES",       "type": "string", "required": false }
+  ]
+}

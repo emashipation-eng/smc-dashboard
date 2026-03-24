@@ -1,0 +1,14 @@
+{
+  "sheetName": "Enquiry_Master",
+  "columns": [
+    { "index": 0, "key": "ENQUIRY_ID",  "type": "string",  "required": true, "format": "ENQ-\\d{6}-\\d{4}" },
+    { "index": 1, "key": "TIMESTAMP",   "type": "datetime","required": true },
+    { "index": 2, "key": "CLIENT_NAME", "type": "string",  "required": true },
+    { "index": 3, "key": "ITEM_DESC",   "type": "string",  "required": true },
+    { "index": 4, "key": "QUANTITY",    "type": "number",  "required": true, "min": 1 },
+    { "index": 5, "key": "UNIT_COST",   "type": "number",  "required": true, "min": 0 },
+    { "index": 6, "key": "MARGIN_PCT",  "type": "number",  "required": true, "min": 0, "max": 100, "default": 15 },
+    { "index": 7, "key": "TOTAL_QUOTE", "type": "number",  "required": true, "min": 0 },
+    { "index": 8, "key": "STATUS",      "type": "enum",    "required": true, "values": ["Quoted","PO Received","Rejected","Expired"] }
+  ]
+}

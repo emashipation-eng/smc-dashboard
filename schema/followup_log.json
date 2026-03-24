@@ -1,0 +1,16 @@
+{
+  "sheetName": "Followup_Log",
+  "columns": [
+    { "index": 0,  "key": "FOLLOWUP_ID",   "type": "string", "required": true, "format": "FLW-\\d{6}-\\d{4}" },
+    { "index": 1,  "key": "ENQUIRY_REF",   "type": "string", "required": true, "fk": "Enquiry_Master.ENQUIRY_ID" },
+    { "index": 2,  "key": "CLIENT_NAME",   "type": "string", "required": true },
+    { "index": 3,  "key": "FOLLOWUP_DATE", "type": "date",   "required": true },
+    { "index": 4,  "key": "METHOD",        "type": "enum",   "required": true, "values": ["Call","WhatsApp","Email","Visit"] },
+    { "index": 5,  "key": "ASSIGNED_TO",   "type": "email",  "required": true },
+    { "index": 6,  "key": "NOTES",         "type": "string", "required": false },
+    { "index": 7,  "key": "OUTCOME",       "type": "enum",   "required": true, "values": ["Pending","Positive","Negative","Rescheduled","Converted"] },
+    { "index": 8,  "key": "NEXT_ACTION",   "type": "string", "required": false },
+    { "index": 9,  "key": "NEXT_DATE",     "type": "date",   "required": false },
+    { "index": 10, "key": "CREATED_AT",    "type": "datetime","required": true }
+  ]
+}
