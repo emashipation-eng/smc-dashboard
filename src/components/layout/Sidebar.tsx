@@ -1,4 +1,7 @@
 import { NavLink } from 'react-router-dom'
+import { REFRESH_INTERVAL_MS } from '../../utils/constants'
+
+const REFRESH_LABEL = `Auto-refresh: ${REFRESH_INTERVAL_MS / 60000} min`
 
 const NAV = [
   { to: '/financial',  label: 'Financial',   icon: '₹' },
@@ -33,7 +36,7 @@ export default function Sidebar() {
         ))}
       </nav>
       <div className="px-4 py-3 border-t border-brand-light">
-        <p className="text-blue-300 text-xs">Auto-refresh: 5 min</p>
+        <p className="text-blue-300 text-xs">{REFRESH_LABEL}</p>
       </div>
     </aside>
   )
