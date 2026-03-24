@@ -2,6 +2,9 @@ import Header from '../components/layout/Header'
 import MetricCard from '../components/cards/MetricCard'
 import RevenueChart from '../components/charts/RevenueChart'
 import ProfitTrend from '../components/charts/ProfitTrend'
+import PaymentAging from '../components/charts/PaymentAging'
+import GSTSummary from '../components/cards/GSTSummary'
+import OrdersTable from '../components/tables/OrdersTable'
 import { useFinancials } from '../hooks/useFinancials'
 import { formatCompactINR, formatPct } from '../utils/formatters'
 
@@ -61,6 +64,15 @@ export default function FinancialDashboard() {
           <RevenueChart data={metrics.monthlyRevenue} />
           <ProfitTrend data={metrics.orderProfits} />
         </div>
+
+        {/* Aging & GST Row */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <PaymentAging data={metrics.agingBuckets} />
+          <GSTSummary gst={metrics.gst} />
+        </div>
+
+        {/* Orders Table */}
+        <OrdersTable orders={metrics.orderProfits} />
       </div>
     </div>
   )
