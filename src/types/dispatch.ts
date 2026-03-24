@@ -1,4 +1,5 @@
-export type DeliveryType = 'H.O' | 'P.C';
+// HD = Hot Dipping, PC = Powder Coating — tracks material sent for outsourced surface treatment
+export type OutsourceProcess = 'HD' | 'PC';
 export type DispatchStatus = 'In-Transit' | 'Delivered' | 'Returned';
 
 export interface Dispatch {
@@ -6,7 +7,7 @@ export interface Dispatch {
   date: string;
   jobRef: string;
   clientName: string;
-  deliveryType: DeliveryType;
+  processType: OutsourceProcess;  // Which outsourced process (Hot Dipping or Powder Coating)
   deliveryAddress: string;
   challanNo: string;
   vehicleNo: string;
