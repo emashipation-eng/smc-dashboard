@@ -40,6 +40,6 @@ export function getImportMeta(key: SheetKey): ImportMeta | null {
 
 export function getImportedSheetKeys(): SheetKey[] {
   return (Object.keys(localStorage) as string[])
-    .filter(k => k.startsWith(PREFIX))
+    .filter(k => k.startsWith(PREFIX) && !k.startsWith(META_PREFIX))
     .map(k => k.replace(PREFIX, '') as SheetKey)
 }
