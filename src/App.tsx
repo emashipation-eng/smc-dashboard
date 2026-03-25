@@ -4,6 +4,7 @@ import FinancialDashboard from './pages/FinancialDashboard'
 import OperationsDashboard from './pages/OperationsDashboard'
 import InventoryDashboard from './pages/InventoryDashboard'
 import SalesDashboard from './pages/SalesDashboard'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/operations" element={<OperationsDashboard />} />
         <Route path="/inventory"  element={<InventoryDashboard />} />
         <Route path="/sales"      element={<SalesDashboard />} />
+        <Route path="/settings"   element={<SettingsPage />} />
       </Routes>
     </DashboardShell>
   )
