@@ -48,5 +48,5 @@ export const SCHEMA_HEADERS: Record<ImportableSheetKey, string[]> = {
 }
 
 export function getExpectedHeaders(key: ImportableSheetKey): string[] {
-  return SCHEMA_HEADERS[key]
+  return [...SCHEMA_HEADERS[key]]
 }
