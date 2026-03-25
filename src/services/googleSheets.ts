@@ -6,6 +6,7 @@ import {
   rowsToDispatches, rowsToFollowups,
 } from './dataTransform'
 import { MOCK_ROWS } from './mockData'
+import { getImport, getImportedSheetKeys } from './importStore'
 
 type Row = string[]
 
@@ -25,25 +26,34 @@ export async function fetchRange(range: string): Promise<Row[]> {
 }
 
 async function fetchAllRanges(): Promise<Record<SheetKey, Row[]>> {
-  const keys   = Object.keys(SHEET_RANGES) as SheetKey[]
+  const keys = Object.keys(SHEET_RANGES) as SheetKey[]
   const ranges = Object.values(SHEET_RANGES)
+  const useAPI = Boolean(SPREADSHEET_ID && API_KEY)
 
-  if (!SPREADSHEET_ID || !API_KEY) {
-    return Object.fromEntries(
-      keys.map(k => [k, MOCK_ROWS[k as keyof typeof MOCK_ROWS] ?? []])
-    ) as Record<SheetKey, Row[]>
+  let apiRows: Record<SheetKey, Row[]> | null = null
+
+  if (useAPI) {
+    const url = `${BASE}/${SPREADSHEET_ID}/values:batchGet?${
+      ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
+    }&key=${API_KEY}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        apiRows = Object.fromEntries(
+          keys.map((k, i) => [k, (data.valueRanges?.[i]?.values ?? []) as Row[]])
+        ) as Record<SheetKey, Row[]>
+      }
+    } catch { /* fallthrough to mock */ }
   }
 
-  const url = `${BASE}/${SPREADSHEET_ID}/values:batchGet?${
-    ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
-  }&key=${API_KEY}`
-
-  const res  = await fetch(url)
-  if (!res.ok) throw new Error(`Sheets batchGet error ${res.status}`)
-  const data = await res.json()
-
   return Object.fromEntries(
-    keys.map((k, i) => [k, (data.valueRanges?.[i]?.values ?? []) as Row[]])
+    keys.map(k => {
+      const imported = getImport(k)
+      if (imported !== null) return [k, imported]
+      if (apiRows)            return [k, apiRows[k]]
+      return [k, MOCK_ROWS[k as keyof typeof MOCK_ROWS] ?? []]
+    })
   ) as Record<SheetKey, Row[]>
 }
 
@@ -70,4 +80,13 @@ export async function fetchAllSheetData(): Promise<AllSheetData> {
     dispatches: rowsToDispatches(raw.DISPATCH),
     followups:  rowsToFollowups(raw.FOLLOWUP),
   }
+}
+
+export type DataSource = 'imported' | 'live' | 'mock'
+
+export function getOverallDataSource(): DataSource {
+  const importedKeys = getImportedSheetKeys()
+  if (importedKeys.length > 0) return 'imported'
+  if (SPREADSHEET_ID && API_KEY) return 'live'
+  return 'mock'
 }
