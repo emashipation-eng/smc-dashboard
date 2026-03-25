@@ -21,7 +21,7 @@ export default function FinancialDashboard() {
 
   return (
     <div>
-      <Header title="Financial Command Center" />
+      <Header />
       <div className="p-6 space-y-6">
         {/* KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

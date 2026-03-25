@@ -10,7 +10,7 @@ export default function InventoryDashboard() {
   if (isLoading) {
     return (
       <div>
-        <Header title="Inventory Intelligence" />
+        <Header />
         <div className="p-6 text-gray-500">Loading inventory data…</div>
       </div>
     )
@@ -19,7 +19,7 @@ export default function InventoryDashboard() {
   if (error) {
     return (
       <div>
-        <Header title="Inventory Intelligence" />
+        <Header />
         <div className="p-6 text-danger">Error loading data: {error.message}</div>
       </div>
     )
@@ -29,7 +29,7 @@ export default function InventoryDashboard() {
 
   return (
     <div>
-      <Header title="Inventory Intelligence" />
+      <Header />
       <div className="p-6 space-y-6">
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

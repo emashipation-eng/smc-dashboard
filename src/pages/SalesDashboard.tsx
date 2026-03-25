@@ -39,7 +39,7 @@ export default function SalesDashboard() {
 
   return (
     <div>
-      <Header title="Sales Pipeline & CRM" />
+      <Header />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard title="Pipeline (Quoted)" value={String(quoted.length)} color="default" />
