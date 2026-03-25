@@ -12,7 +12,7 @@ export default function OperationsDashboard() {
     return (
       <div>
         <Header />
-        <div className="p-6 text-gray-500 text-sm">Loading...</div>
+        <div className="p-3 sm:p-6 text-gray-500 text-sm">Loading...</div>
       </div>
     )
   }
@@ -21,7 +21,7 @@ export default function OperationsDashboard() {
     return (
       <div>
         <Header />
-        <div className="p-6 text-red-500 text-sm">Error loading data: {error}</div>
+        <div className="p-3 sm:p-6 text-red-500 text-sm">Error loading data: {error}</div>
       </div>
     )
   }
@@ -30,7 +30,7 @@ export default function OperationsDashboard() {
     return (
       <div>
         <Header />
-        <div className="p-6 text-gray-400 text-sm">No data available.</div>
+        <div className="p-3 sm:p-6 text-gray-400 text-sm">No data available.</div>
       </div>
     )
   }
@@ -38,7 +38,7 @@ export default function OperationsDashboard() {
   return (
     <div>
       <Header />
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard title="Active Jobs" value={String(metrics.activeJobs.length)} color="default" />
           <MetricCard title="Delayed" value={String(metrics.delayed.length)} color={metrics.delayed.length > 0 ? 'danger' : 'success'} />

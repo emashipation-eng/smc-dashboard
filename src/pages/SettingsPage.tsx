@@ -42,7 +42,7 @@ function SettingsContent() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-8">
+    <div className="p-3 sm:p-6 max-w-2xl mx-auto space-y-8">
 
       {/* Header */}
       <div className="flex items-center justify-between">

@@ -16,13 +16,13 @@ export default function FinancialDashboard() {
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand" />
     </div>
   )
-  if (error) return <div className="p-6 text-danger">Error loading data: {error.message}</div>
+  if (error) return <div className="p-3 sm:p-6 text-danger">Error loading data: {error.message}</div>
   if (!metrics) return null
 
   return (
     <div>
       <Header />
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <MetricCard

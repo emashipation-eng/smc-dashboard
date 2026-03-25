@@ -11,7 +11,7 @@ export default function InventoryDashboard() {
     return (
       <div>
         <Header />
-        <div className="p-6 text-gray-500">Loading inventory data…</div>
+        <div className="p-3 sm:p-6 text-gray-500">Loading inventory data…</div>
       </div>
     )
   }
@@ -20,7 +20,7 @@ export default function InventoryDashboard() {
     return (
       <div>
         <Header />
-        <div className="p-6 text-danger">Error loading data: {error.message}</div>
+        <div className="p-3 sm:p-6 text-danger">Error loading data: {error.message}</div>
       </div>
     )
   }
@@ -30,7 +30,7 @@ export default function InventoryDashboard() {
   return (
     <div>
       <Header />
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard title="Total Items" value={String(metrics.totalItems)} color="default" />

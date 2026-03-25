@@ -20,7 +20,7 @@ export default function SalesDashboard() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         <p className="text-danger font-medium">Error loading data: {error.message}</p>
       </div>
     )
@@ -40,7 +40,7 @@ export default function SalesDashboard() {
   return (
     <div>
       <Header />
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard title="Pipeline (Quoted)" value={String(quoted.length)} color="default" />
           <MetricCard title="Pipeline Value" value={formatCompactINR(pipelineValue)} color="default" />
