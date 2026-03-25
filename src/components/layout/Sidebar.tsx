@@ -34,6 +34,19 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-brand-light text-white'
+                : 'text-blue-200 hover:bg-brand-light hover:text-white'
+            }`
+          }
+        >
+          <span className="text-base">⚙</span>
+          Settings
+        </NavLink>
       </nav>
       <div className="px-4 py-3 border-t border-brand-light">
         <p className="text-blue-300 text-xs">{REFRESH_LABEL}</p>
