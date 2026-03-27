@@ -10,8 +10,9 @@ import { getImport, getImportedSheetKeys } from './importStore'
 
 type Row = string[]
 
-const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined
-const BASE    = 'https://sheets.googleapis.com/v4/spreadsheets'
+const API_KEY        = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined
+const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL as string | undefined
+const BASE           = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 export async function fetchRange(range: string): Promise<Row[]> {
   if (!SPREADSHEET_ID || !API_KEY) {
@@ -25,14 +26,29 @@ export async function fetchRange(range: string): Promise<Row[]> {
   return (data.values ?? []) as Row[]
 }
 
+async function fetchFromAppsScript(): Promise<Record<SheetKey, Row[]> | null> {
+  if (!APPS_SCRIPT_URL) return null
+  try {
+    const res = await fetch(APPS_SCRIPT_URL)
+    if (!res.ok) return null
+    return await res.json() as Record<SheetKey, Row[]>
+  } catch {
+    console.warn('[Sheets] Apps Script fetch failed — falling back')
+    return null
+  }
+}
+
 async function fetchAllRanges(): Promise<Record<SheetKey, Row[]>> {
   const keys = Object.keys(SHEET_RANGES) as SheetKey[]
   const ranges = Object.values(SHEET_RANGES)
   const useAPI = Boolean(SPREADSHEET_ID && API_KEY)
 
+  // Try Apps Script proxy first (before raw Sheets API)
+  const scriptRows = await fetchFromAppsScript()
+
   let apiRows: Record<SheetKey, Row[]> | null = null
 
-  if (useAPI) {
+  if (!scriptRows && useAPI) {
     const url = `${BASE}/${SPREADSHEET_ID}/values:batchGet?${
       ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
     }&key=${API_KEY}`
@@ -51,6 +67,7 @@ async function fetchAllRanges(): Promise<Record<SheetKey, Row[]>> {
     keys.map(k => {
       const imported = getImport(k)
       if (imported !== null) return [k, imported]
+      if (scriptRows)         return [k, scriptRows[k] ?? []]
       if (apiRows)            return [k, apiRows[k]]
       return [k, MOCK_ROWS[k as keyof typeof MOCK_ROWS] ?? []]
     })
@@ -87,6 +104,6 @@ export type DataSource = 'imported' | 'live' | 'mock'
 export function getOverallDataSource(): DataSource {
   const importedKeys = getImportedSheetKeys()
   if (importedKeys.length > 0) return 'imported'
-  if (SPREADSHEET_ID && API_KEY) return 'live'
+  if (APPS_SCRIPT_URL || (SPREADSHEET_ID && API_KEY)) return 'live'
   return 'mock'
 }
