@@ -26,6 +26,12 @@ export async function fetchRange(range: string): Promise<Row[]> {
   return (data.values ?? []) as Row[]
 }
 
+/**
+ * Fetches all sheet data from the Apps Script Web App proxy.
+ * The proxy MUST return rows with a header row as row[0] for each sheet key,
+ * matching the raw Sheets API contract (required by dataTransform's skipHeader).
+ * Returns null on failure — caller falls back to next data source.
+ */
 async function fetchFromAppsScript(): Promise<Record<SheetKey, Row[]> | null> {
   if (!APPS_SCRIPT_URL) return null
   try {

@@ -41,9 +41,11 @@ describe('fetchAllSheetData — Apps Script path', () => {
   })
 
   it('uses Apps Script data when URL is set and fetch succeeds', async () => {
+    // Apps Script response MUST include a header row as row[0] (skipped by skipHeader in dataTransform)
+    // followed by actual data rows. This matches the raw Sheets API contract.
     const mockRows = {
-      INVENTORY:  [
-        ['Item ID', 'Name', 'Category', 'Sub', 'Qty', 'Unit', 'Price', 'Notes'],
+      INVENTORY: [
+        ['Item ID', 'Item Name', 'Category', 'Dimensions', 'Current Stock', 'UOM', 'Min Alert Level', 'Location Bin'], // header row — skipped by dataTransform
         ['INV001', 'MS Rod', 'Raw Material', '', '50', 'kg', '10', ''],
       ],
       ENQUIRY:    [],
