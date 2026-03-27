@@ -252,8 +252,13 @@ function doGet(e) {
 
   } catch (err) {
     Logger.log('[DataAPI] Fatal error: ' + err);
+    // Return valid shape so dashboard receives expected keys (all empty after skipHeader)
+    var fallback = { _error: String(err) };
+    Object.keys(SHEET_CONFIG).forEach(function(key) {
+      fallback[key] = [SHEET_CONFIG[key].schemaHeaders];
+    });
     return ContentService
-      .createTextOutput(JSON.stringify({ error: String(err) }))
+      .createTextOutput(JSON.stringify(fallback))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
