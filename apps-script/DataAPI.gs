@@ -181,6 +181,9 @@ const SHEET_CONFIG = {
       'Created At':  10,
     }
   },
+  // NOTE: PRICING data is fetched here but not yet consumed by the dashboard
+  // (no rowsToPricing in dataTransform.ts). Included for future use.
+  // Remove this entry if quota usage is a concern until a consumer is built.
   PRICING: {
     spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
     tabName: 'Price_Registry',
@@ -233,6 +236,9 @@ function doGet(e) {
         const headers  = data[0].map(function(h) { return String(h).trim(); });
         const dataRows = data.slice(1);
 
+        // Filters fully blank rows. Note: rows with blank primary key (col 0) but other data
+        // will pass this filter but will be silently dropped by the dashboard's skipHeader
+        // (which filters rows where row[0] is falsy). Inspect source data if rows go missing.
         const remapped = dataRows
           .filter(function(row) { return row.some(function(cell) { return cell !== ''; }); })
           .map(function(row) { return remapRow(row, headers, config.map, config.columns); });
@@ -253,6 +259,7 @@ function doGet(e) {
   } catch (err) {
     Logger.log('[DataAPI] Fatal error: ' + err);
     // Return valid shape so dashboard receives expected keys (all empty after skipHeader)
+    // _error is for Apps Script log diagnostics only — not checked by the dashboard consumer
     var fallback = { _error: String(err) };
     Object.keys(SHEET_CONFIG).forEach(function(key) {
       fallback[key] = [SHEET_CONFIG[key].schemaHeaders];
@@ -269,12 +276,12 @@ function doGet(e) {
  * Dates are formatted as 'yyyy-MM-dd' strings.
  */
 function remapRow(row, headers, columnMap, totalCols) {
-  var output = new Array(totalCols).fill('');
-  for (var headerName in columnMap) {
-    var targetIndex  = columnMap[headerName];
-    var sourceIndex  = headers.indexOf(headerName);
+  const output = new Array(totalCols).fill('');
+  for (const headerName in columnMap) {
+    const targetIndex  = columnMap[headerName];
+    const sourceIndex  = headers.indexOf(headerName);
     if (sourceIndex !== -1 && sourceIndex < row.length) {
-      var val = row[sourceIndex];
+      const val = row[sourceIndex];
       output[targetIndex] = val instanceof Date
         ? Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd')
         : String(val === null || val === undefined ? '' : val);
@@ -285,14 +292,13 @@ function remapRow(row, headers, columnMap, totalCols) {
 
 /**
  * inspectHeaders — run manually in Apps Script editor (Run > inspectHeaders).
- * Prints all tab names and column headers for a spreadsheet to the log.
+ * Set inspectSpreadsheetId to each ID appearing in SHEET_CONFIG and run once per ID.
+ * Prints all tab names and column headers to the log (View > Logs).
  * Use the output to fill in SHEET_CONFIG.map entries and tabName values.
- *
- * Usage: set inspectSpreadsheetId to the ID you want to inspect, then run.
  */
 function inspectHeaders() {
-  var inspectSpreadsheetId = 'REPLACE_WITH_SPREADSHEET_ID_TO_INSPECT';
-  var ss = SpreadsheetApp.openById(inspectSpreadsheetId);
+  const inspectSpreadsheetId = 'REPLACE_WITH_SPREADSHEET_ID_TO_INSPECT';
+  const ss = SpreadsheetApp.openById(inspectSpreadsheetId);
   ss.getSheets().forEach(function(sheet) {
     var name     = sheet.getName();
     var lastCol  = sheet.getLastColumn();
