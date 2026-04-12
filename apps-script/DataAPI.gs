@@ -10,6 +10,44 @@
  * followed by data rows. Required by dashboard's dataTransform skipHeader.
  */
 
+// ─── DATE FILTER ─────────────────────────────────────────────────────────────
+// Only return data from October 2025 onwards
+const CUTOFF_DATE = '2025-10-01';
+
+function afterCutoff(dateStr) {
+  if (!dateStr) return false;
+  return String(dateStr).slice(0, 10) >= CUTOFF_DATE;
+}
+
+// ─── STATUS MAPPING ──────────────────────────────────────────────────────────
+// Maps Umang's quotation status values to dashboard schema values
+function mapEnquiryStatus(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  if (!s) return 'Quoted';
+  if (s.includes('CONFIRM') || s.includes('PO')   || s.includes('WON'))    return 'PO Received';
+  if (s.includes('CLOSED')  || s.includes('CLOSE'))                         return 'PO Received'; // closed = order completed
+  if (s.includes('LOST')    || s.includes('REJECT') || s.includes('CANCEL') || s.includes('EXPIR')) return 'Expired';
+  return 'Quoted';
+}
+
+// Maps production status to dashboard schema values
+function mapProductionStatus(prod, process, dispatchDate) {
+  if (dispatchDate) return 'Complete';
+  if (String(prod || '').toUpperCase()    === 'OK') return 'Complete';
+  if (String(process || '').toUpperCase() === 'OK') return 'In-Progress';
+  return 'Pending';
+}
+
+// Derives production stage from dispatch/prod/process flags and material type
+function mapProductionStage(prod, process, dispatchDate, thick) {
+  if (dispatchDate)                                       return 'Dispatch';
+  if (String(prod || '').toUpperCase()    === 'OK')       return 'QC';
+  if (String(process || '').toUpperCase() === 'OK')       return 'Welding';
+  const t = String(thick || '').toUpperCase();
+  if (t.includes('GP') || t.includes('PAINT'))            return 'Paint';
+  return 'Cutting';
+}
+
 // ─── SPREADSHEET IDs ─────────────────────────────────────────────────────────
 const SS = {
   SHEET_STOCK:     '1JNiqcBlkk0Ay4HPcPgm04HeQAe65MlaPT2v1daI7eGI',
@@ -165,7 +203,11 @@ function buildEnquiry() {
         if (seen[key]) continue;
         seen[key] = true;
 
+        // Apply Oct 2025 date filter
+        if (!afterCutoff(dateStr)) continue;
+
         const idVal = (idCol !== -1 && row[idCol]) ? String(row[idCol]).trim() : ('ENQ' + String(autoId).padStart(4, '0'));
+        const status = mapEnquiryStatus(cellStr(row, statusCol));
 
         // [Enquiry ID, Timestamp, Client Name, Item Desc, Qty, Unit Cost, Margin%, Total Quote, Status]
         rows.push([
@@ -173,11 +215,11 @@ function buildEnquiry() {
           dateStr,
           client,
           desc,
-          '',   // Quantity — not captured in Quotation Diary
-          '',   // Unit Cost
-          '',   // Margin %
-          '',   // Total Quote
-          cellStr(row, statusCol),
+          '',   // Quantity — not in Quotation Diary
+          '',   // Unit Cost — not in Quotation Diary (add "AMOUNT" column to get revenue)
+          '',   // Margin % — not in Quotation Diary
+          '',   // Total Quote — not in Quotation Diary (add "AMOUNT" column to get revenue)
+          status,
         ]);
         autoId++;
       }
@@ -228,6 +270,9 @@ function buildProduction() {
       let currentDate     = '';
       let currentStatus   = '';
       let currentDispatch = '';
+      let currentProd     = '';
+      let currentProcess  = '';
+      let currentInCutoff = false;
 
       for (let i = headerRow + 1; i < data.length; i++) {
         const row   = data[i];
@@ -243,16 +288,19 @@ function buildProduction() {
           // CLIENT ROW — update running state
           currentClient   = desc;
           currentDate     = dateVal instanceof Date ? fmtDate(dateVal) : String(dateVal);
-          const prodOk    = cellStr(row, prodCol).toUpperCase()    === 'OK';
-          const processOk = cellStr(row, processCol).toUpperCase() === 'OK';
-          currentStatus   = prodOk ? 'Complete' : processOk ? 'In-Progress' : 'Pending';
+          currentInCutoff = afterCutoff(currentDate);
+          currentProd     = cellStr(row, prodCol);
+          currentProcess  = cellStr(row, processCol);
           const dv        = dispatchCol !== -1 ? row[dispatchCol] : null;
           currentDispatch = dv instanceof Date ? fmtDate(dv) : (dv ? String(dv) : '');
+          currentStatus   = mapProductionStatus(currentProd, currentProcess, currentDispatch);
 
         } else if (!hasDate && currentClient) {
-          // ITEM ROW — create production entry
+          // ITEM ROW — skip if client date is before cutoff
+          if (!currentInCutoff) continue;
+
           const thick = cellStr(row, thickCol);
-          const stage = deriveStage(thick, cellStr(row, processCol));
+          const stage = mapProductionStage(currentProd, currentProcess, currentDispatch, thick);
 
           // [Job ID, Client, Stage, Assigned To, Status, Start Date, Due Date, Est Hrs, Actual Hrs, Weight]
           rows.push([
@@ -305,6 +353,10 @@ function buildPurchase() {
 
     const dateVal  = row[dateCol];
     const dateStr  = dateVal instanceof Date ? fmtDate(dateVal) : cellStr(row, dateCol);
+
+    // Apply Oct 2025 date filter
+    if (!afterCutoff(dateStr)) continue;
+
     const recvVal  = receivedCol !== -1 ? row[receivedCol] : null;
     const recvStr  = recvVal instanceof Date ? fmtDate(recvVal) : (recvVal ? String(recvVal) : '');
     const qty      = cellStr(row, qtyCol);
@@ -437,6 +489,9 @@ function buildDispatch() {
 
         const dispVal = dispatchCol !== -1 ? row[dispatchCol] : null;
         if (!(dispVal instanceof Date)) continue; // only rows with actual dispatch dates
+
+        // Apply Oct 2025 date filter
+        if (!afterCutoff(fmtDate(dispVal))) continue;
 
         // [Dispatch ID, Date, Job Ref, Client Name, DelivMode, DelivAddr, ChallanNo, VehicleNo,
         //  Transporter, Freight, Weight, NoPkgs, ReceivedBy, ReceiptDate, PODLink, Status]
