@@ -1,315 +1,562 @@
 /**
- * DataAPI.gs — SMC Dashboard Data Proxy
- * Deployed as a standalone Web App under Umang's Google account.
- * Reads private sheets, remaps columns to dashboard schema, returns JSON.
+ * DataAPI.gs — SMC Dashboard Data Proxy v2
+ * Maps Umang's actual Google Sheets to dashboard schema.
  *
- * Deploy settings:
+ * Deploy as Web App:
  *   Execute as: Me (Umang's account)
  *   Who has access: Anyone
  *
- * CONTRACT: Each sheet key in the JSON response includes a schema header row
- * as row[0], followed by data rows. This matches the raw Sheets API contract
- * expected by the dashboard's dataTransform layer (skipHeader).
- */
-
-// ─── CONFIG ────────────────────────────────────────────────────────────────
-/**
- * SHEET_CONFIG — one entry per sheet key.
+ * CONTRACT: Each key in the JSON response includes a schema header row as row[0],
+ * followed by data rows. Required by dashboard's dataTransform skipHeader.
  *
- * spreadsheetId: Umang's spreadsheet ID (from the URL: /spreadsheets/d/<ID>/edit)
- *                Multiple entries can use different spreadsheet IDs.
- * tabName:       Exact tab name (case-sensitive) inside that spreadsheet
- * schemaHeaders: Column names to use as the header row[0] in the output
- *                (must match the order in src/config/sheets.ts COL definitions)
- * columns:       Total number of columns in the schema for this sheet
- * map:           { "Umang's actual column header": ourSchemaColumnIndex }
- *                Fill in after running inspectHeaders() — see bottom of file.
+ * ⚠ VERIFY IDs marked below — they appear truncated. Confirm from each sheet's URL.
  */
-const SHEET_CONFIG = {
-  INVENTORY: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Master_Inventory',
-    columns: 8,
-    schemaHeaders: ['Item ID', 'Item Name', 'Category', 'Dimensions', 'Current Stock', 'UOM', 'Min Alert Level', 'Location Bin'],
-    map: {
-      'Item ID':         0,
-      'Item Name':       1,
-      'Category':        2,
-      'Dimensions':      3,
-      'Current Stock':   4,
-      'UOM':             5,
-      'Min Alert Level': 6,
-      'Location Bin':    7,
-    }
-  },
-  ENQUIRY: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Enquiry_Master',
-    columns: 9,
-    schemaHeaders: ['Enquiry ID', 'Timestamp', 'Client Name', 'Item Desc', 'Quantity', 'Unit Cost', 'Margin %', 'Total Quote', 'Status'],
-    map: {
-      'Enquiry ID':  0,
-      'Timestamp':   1,
-      'Client Name': 2,
-      'Item Desc':   3,
-      'Quantity':    4,
-      'Unit Cost':   5,
-      'Margin %':    6,
-      'Total Quote': 7,
-      'Status':      8,
-    }
-  },
-  PRODUCTION: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Production_Queue',
-    columns: 10,
-    schemaHeaders: ['Job ID', 'Client Name', 'Stage', 'Assigned To', 'Status', 'Start Date', 'Due Date', 'Est. Hours', 'Actual Hours', 'Weight (kg)'],
-    map: {
-      'Job ID':       0,
-      'Client Name':  1,
-      'Stage':        2,
-      'Assigned To':  3,
-      'Status':       4,
-      'Start Date':   5,
-      'Due Date':     6,
-      'Est. Hours':   7,
-      'Actual Hours': 8,
-      'Weight (kg)':  9,
-    }
-  },
-  PURCHASE: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Purchase_Register',
-    columns: 16,
-    schemaHeaders: ['Purchase ID', 'Date', 'Supplier', 'Item ID', 'Item Desc', 'Quantity', 'Rate', 'Amount', 'GST %', 'GST Amount', 'Total', 'Invoice No', 'Invoice Date', 'Payment Status', 'Paid Amount', 'Job Ref'],
-    map: {
-      'Purchase ID':    0,
-      'Date':           1,
-      'Supplier':       2,
-      'Item ID':        3,
-      'Item Desc':      4,
-      'Quantity':       5,
-      'Rate':           6,
-      'Amount':         7,
-      'GST %':          8,
-      'GST Amount':     9,
-      'Total':         10,
-      'Invoice No':    11,
-      'Invoice Date':  12,
-      'Payment Status':13,
-      'Paid Amount':   14,
-      'Job Ref':       15,
-    }
-  },
-  PAYMENT: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Payment_Tracker',
-    columns: 10,
-    schemaHeaders: ['Payment ID', 'Date', 'Type', 'Enquiry Ref', 'Client Name', 'Amount', 'Mode', 'Reference', 'Receipt No', 'Notes'],
-    map: {
-      'Payment ID':  0,
-      'Date':        1,
-      'Type':        2,
-      'Enquiry Ref': 3,
-      'Client Name': 4,
-      'Amount':      5,
-      'Mode':        6,
-      'Reference':   7,
-      'Receipt No':  8,
-      'Notes':       9,
-    }
-  },
-  EXPENSE: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Expense_Ledger',
-    columns: 11,
-    schemaHeaders: ['Expense ID', 'Date', 'Category', 'Description', 'Amount', 'GST Applicable', 'GST Amount', 'Paid To', 'Job Ref', 'Payment Mode', 'Approved By'],
-    map: {
-      'Expense ID':    0,
-      'Date':          1,
-      'Category':      2,
-      'Description':   3,
-      'Amount':        4,
-      'GST Applicable':5,
-      'GST Amount':    6,
-      'Paid To':       7,
-      'Job Ref':       8,
-      'Payment Mode':  9,
-      'Approved By':  10,
-    }
-  },
-  DISPATCH: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Dispatch_Log',
-    columns: 16,
-    schemaHeaders: ['Dispatch ID', 'Date', 'Job Ref', 'Client Name', 'Delivery Mode', 'Delivery Address', 'Challan No', 'Vehicle No', 'Transporter', 'Freight Cost', 'Weight (kg)', 'No of Packages', 'Received By', 'Receipt Date', 'POD Link', 'Status'],
-    map: {
-      'Dispatch ID':      0,
-      'Date':             1,
-      'Job Ref':          2,
-      'Client Name':      3,
-      'Delivery Mode':    4,
-      'Delivery Address': 5,
-      'Challan No':       6,
-      'Vehicle No':       7,
-      'Transporter':      8,
-      'Freight Cost':     9,
-      'Weight (kg)':     10,
-      'No of Packages':  11,
-      'Received By':     12,
-      'Receipt Date':    13,
-      'POD Link':        14,
-      'Status':          15,
-    }
-  },
-  FOLLOWUP: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Followup_Log',
-    columns: 11,
-    schemaHeaders: ['Followup ID', 'Enquiry Ref', 'Client Name', 'Followup Date', 'Method', 'Assigned To', 'Notes', 'Outcome', 'Next Action', 'Next Date', 'Created At'],
-    map: {
-      'Followup ID':  0,
-      'Enquiry Ref':  1,
-      'Client Name':  2,
-      'Followup Date':3,
-      'Method':       4,
-      'Assigned To':  5,
-      'Notes':        6,
-      'Outcome':      7,
-      'Next Action':  8,
-      'Next Date':    9,
-      'Created At':  10,
-    }
-  },
-  // NOTE: PRICING data is fetched here but not yet consumed by the dashboard
-  // (no rowsToPricing in dataTransform.ts). Included for future use.
-  // Remove this entry if quota usage is a concern until a consumer is built.
-  PRICING: {
-    spreadsheetId: 'REPLACE_WITH_SPREADSHEET_ID',
-    tabName: 'Price_Registry',
-    columns: 5,
-    schemaHeaders: ['Material Code', 'Supplier', 'Current Rate', 'Last Updated', 'Tax %'],
-    map: {
-      'Material Code': 0,
-      'Supplier':      1,
-      'Current Rate':  2,
-      'Last Updated':  3,
-      'Tax %':         4,
-    }
-  },
-};
-// ─── END CONFIG ────────────────────────────────────────────────────────────
 
-/**
- * HTTP GET handler — entry point for the Web App.
- * Returns all sheet data as JSON. Each key contains:
- *   row[0]: schema header row (skipped by dashboard's dataTransform)
- *   row[1+]: actual data rows in schema column order
- */
+// ─── SPREADSHEET IDs ─────────────────────────────────────────────────────────
+const SS = {
+  SHEET_STOCK:     '1JNiqcBlkk0Ay4HPcPgm04HeQAe65MlaPT2v1daI7eGI',
+  QUOTATION_DIARY: '1oT7p6imRNspBaVOcb96p8XyQs',      // ⚠ verify — appears truncated (26 chars, expected ~44)
+  ORDER_BOOK:      '1pxR0owvYY8BsAdqwdPHfwTet1nFrSPvI9BsvILuo-1I',
+  RAW_MATERIAL:    '1wH9_0Ao2ayGR1XY_LaZ6e9Lmg00qGWUqm0mXBg',    // ⚠ verify — appears truncated (40 chars, expected ~44)
+  DEBIT_CREDIT:    '1Sy0Yd8nt6OyEXCKkGVfx1Wi8o_rOXnoIlemxBblrzwE',
+};
+
+// ─── SCHEMA HEADERS ──────────────────────────────────────────────────────────
+const HEADERS = {
+  INVENTORY:  ['Item ID', 'Item Name', 'Category', 'Dimensions', 'Current Stock', 'UOM', 'Min Alert Level', 'Location Bin'],
+  ENQUIRY:    ['Enquiry ID', 'Timestamp', 'Client Name', 'Item Desc', 'Quantity', 'Unit Cost', 'Margin %', 'Total Quote', 'Status'],
+  PRODUCTION: ['Job ID', 'Client Name', 'Stage', 'Assigned To', 'Status', 'Start Date', 'Due Date', 'Est. Hours', 'Actual Hours', 'Weight (kg)'],
+  PURCHASE:   ['Purchase ID', 'Date', 'Supplier', 'Item ID', 'Item Desc', 'Quantity', 'Rate', 'Amount', 'GST %', 'GST Amount', 'Total', 'Invoice No', 'Invoice Date', 'Payment Status', 'Paid Amount', 'Job Ref'],
+  PAYMENT:    ['Payment ID', 'Date', 'Type', 'Enquiry Ref', 'Client Name', 'Amount', 'Mode', 'Reference', 'Receipt No', 'Notes'],
+  EXPENSE:    ['Expense ID', 'Date', 'Category', 'Description', 'Amount', 'GST Applicable', 'GST Amount', 'Paid To', 'Job Ref', 'Payment Mode', 'Approved By'],
+  DISPATCH:   ['Dispatch ID', 'Date', 'Job Ref', 'Client Name', 'Delivery Mode', 'Delivery Address', 'Challan No', 'Vehicle No', 'Transporter', 'Freight Cost', 'Weight (kg)', 'No of Packages', 'Received By', 'Receipt Date', 'POD Link', 'Status'],
+  FOLLOWUP:   ['Followup ID', 'Enquiry Ref', 'Client Name', 'Followup Date', 'Method', 'Assigned To', 'Notes', 'Outcome', 'Next Action', 'Next Date', 'Created At'],
+  PRICING:    ['Material Code', 'Supplier', 'Current Rate', 'Last Updated', 'Tax %'],
+};
+
+// ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 function doGet(e) {
   try {
     const result = {};
-    // Cache opened spreadsheets to avoid redundant openById calls
-    const ssCache = {};
-
-    for (const [key, config] of Object.entries(SHEET_CONFIG)) {
-      try {
-        if (!ssCache[config.spreadsheetId]) {
-          ssCache[config.spreadsheetId] = SpreadsheetApp.openById(config.spreadsheetId);
-        }
-        const ss    = ssCache[config.spreadsheetId];
-        const sheet = ss.getSheetByName(config.tabName);
-
-        if (!sheet) {
-          Logger.log('[DataAPI] Tab not found: ' + config.tabName + ' in ' + config.spreadsheetId);
-          result[key] = [config.schemaHeaders];  // header only, no data rows
-          continue;
-        }
-
-        const data = sheet.getDataRange().getValues();
-
-        if (data.length < 2) {
-          result[key] = [config.schemaHeaders];  // header only, no data rows
-          continue;
-        }
-
-        const headers  = data[0].map(function(h) { return String(h).trim(); });
-        const dataRows = data.slice(1);
-
-        // Filters fully blank rows. Note: rows with blank primary key (col 0) but other data
-        // will pass this filter but will be silently dropped by the dashboard's skipHeader
-        // (which filters rows where row[0] is falsy). Inspect source data if rows go missing.
-        const remapped = dataRows
-          .filter(function(row) { return row.some(function(cell) { return cell !== ''; }); })
-          .map(function(row) { return remapRow(row, headers, config.map, config.columns); });
-
-        // Prepend schema header row so dashboard's skipHeader works correctly
-        result[key] = [config.schemaHeaders].concat(remapped);
-
-      } catch (sheetErr) {
-        Logger.log('[DataAPI] Error reading ' + key + ': ' + sheetErr);
-        result[key] = [SHEET_CONFIG[key].schemaHeaders];  // header only on error
-      }
-    }
+    result.INVENTORY  = [HEADERS.INVENTORY].concat(buildInventory());
+    result.ENQUIRY    = [HEADERS.ENQUIRY].concat(buildEnquiry());
+    result.PRODUCTION = [HEADERS.PRODUCTION].concat(buildProduction());
+    result.PURCHASE   = [HEADERS.PURCHASE].concat(buildPurchase());
+    result.PAYMENT    = [HEADERS.PAYMENT].concat(buildPayment());
+    result.EXPENSE    = [HEADERS.EXPENSE];   // not in Umang's sheets yet
+    result.DISPATCH   = [HEADERS.DISPATCH].concat(buildDispatch());
+    result.FOLLOWUP   = [HEADERS.FOLLOWUP];  // not in Umang's sheets yet
+    result.PRICING    = [HEADERS.PRICING].concat(buildPricing());
 
     return ContentService
       .createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
-    Logger.log('[DataAPI] Fatal error: ' + err);
-    // Return valid shape so dashboard receives expected keys (all empty after skipHeader)
-    // _error is for Apps Script log diagnostics only — not checked by the dashboard consumer
-    var fallback = { _error: String(err) };
-    Object.keys(SHEET_CONFIG).forEach(function(key) {
-      fallback[key] = [SHEET_CONFIG[key].schemaHeaders];
-    });
+    Logger.log('[DataAPI] Fatal: ' + err);
+    const fallback = { _error: String(err) };
+    Object.keys(HEADERS).forEach(function(k) { fallback[k] = [HEADERS[k]]; });
     return ContentService
       .createTextOutput(JSON.stringify(fallback))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-/**
- * Remaps a row from Umang's column order to our schema column order.
- * Unknown columns are silently dropped; missing schema columns stay ''.
- * Dates are formatted as 'yyyy-MM-dd' strings.
- */
-function remapRow(row, headers, columnMap, totalCols) {
-  const output = new Array(totalCols).fill('');
-  for (const headerName in columnMap) {
-    const targetIndex  = columnMap[headerName];
-    const sourceIndex  = headers.indexOf(headerName);
-    if (sourceIndex !== -1 && sourceIndex < row.length) {
-      const val = row[sourceIndex];
-      output[targetIndex] = val instanceof Date
-        ? Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd')
-        : String(val === null || val === undefined ? '' : val);
+// ─── INVENTORY ───────────────────────────────────────────────────────────────
+// Source: SHEET STOCK — each tab is one material type (MS 1MM, GP 1.4MM, etc.)
+// One output row per tab: latest Balance kg = current stock
+function buildInventory() {
+  const ss   = SpreadsheetApp.openById(SS.SHEET_STOCK);
+  const rows = [];
+  let idx = 1;
+
+  ss.getSheets().forEach(function(sheet) {
+    try {
+      const tabName = sheet.getName().trim();
+      const data    = sheet.getDataRange().getValues();
+      if (data.length < 2) return;
+
+      const headers    = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+      const balanceCol = findCol(headers, ['balance kg', 'balance']);
+      const priceCol   = findCol(headers, ['price', 'price ']);
+
+      if (balanceCol === -1) return;
+
+      // Latest stock: scan bottom-up for first numeric balance value
+      let currentStock = '';
+      for (let i = data.length - 1; i >= 1; i--) {
+        const v = data[i][balanceCol];
+        if (v !== '' && v !== null && !isNaN(Number(v)) && Number(v) >= 0) {
+          currentStock = String(v);
+          break;
+        }
+      }
+
+      // Latest price: scan top-down for first numeric price
+      let currentPrice = '';
+      if (priceCol !== -1) {
+        for (let i = 1; i < data.length; i++) {
+          const v = data[i][priceCol];
+          if (v !== '' && v !== null && !isNaN(Number(v)) && Number(v) > 0) {
+            currentPrice = String(v);
+            break;
+          }
+        }
+      }
+
+      // Derive category from tab name prefix
+      const upper = tabName.toUpperCase();
+      let category = 'Sheet Metal';
+      if      (upper.startsWith('GPSP')) category = 'GP Special';
+      else if (upper.startsWith('GP'))   category = 'GP Sheet';
+      else if (upper.startsWith('MS'))   category = 'MS Sheet';
+      else if (upper.startsWith('CR'))   category = 'CR Sheet';
+
+      // [Item ID, Item Name, Category, Dimensions, Current Stock, UOM, Min Alert Level, Location Bin]
+      rows.push([
+        'INV' + String(idx).padStart(3, '0'),
+        tabName,
+        category,
+        tabName,      // tab name contains thickness (e.g. "MS 1.6mm")
+        currentStock,
+        'kg',
+        '500',        // default alert threshold — adjust per material if needed
+        '',
+      ]);
+      idx++;
+    } catch (err) {
+      Logger.log('[Inventory] Tab ' + sheet.getName() + ': ' + err);
     }
-  }
-  return output;
+  });
+
+  return rows;
 }
 
+// ─── ENQUIRY ─────────────────────────────────────────────────────────────────
+// Source: QUOTATION DIARY — all monthly tabs combined
+// Columns: SR NO/S.N0, DATE, CUST NAME/ORGNIZATION NAME, DESCRIPTION, STATUS
+function buildEnquiry() {
+  const ss   = SpreadsheetApp.openById(SS.QUOTATION_DIARY);
+  const rows = [];
+  const seen = {};
+  let autoId = 1;
+
+  ss.getSheets().forEach(function(sheet) {
+    try {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) return;
+
+      const headers   = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+      const idCol     = findCol(headers, ['sr no', 's.n0', 's.no', 'sr. no', 'sr.no']);
+      const dateCol   = findCol(headers, ['date']);
+      const clientCol = findCol(headers, ['cust name', 'orgnization  name', 'orgnization name', 'organization name', 'client name', 'customer name']);
+      const descCol   = findCol(headers, ['description', 'desription', 'desc']);
+      const statusCol = findCol(headers, ['status']);
+
+      for (let i = 1; i < data.length; i++) {
+        const row    = data[i];
+        const client = cellStr(row, clientCol);
+        if (!client) continue;
+
+        const dateVal = row[dateCol];
+        const dateStr = dateVal instanceof Date ? fmtDate(dateVal) : cellStr(row, dateCol);
+        const desc    = cellStr(row, descCol);
+
+        // De-duplicate across tabs (same enquiry may appear in multiple months)
+        const key = dateStr + '|' + client + '|' + desc;
+        if (seen[key]) continue;
+        seen[key] = true;
+
+        const idVal = (idCol !== -1 && row[idCol]) ? String(row[idCol]).trim() : ('ENQ' + String(autoId).padStart(4, '0'));
+
+        // [Enquiry ID, Timestamp, Client Name, Item Desc, Qty, Unit Cost, Margin%, Total Quote, Status]
+        rows.push([
+          idVal,
+          dateStr,
+          client,
+          desc,
+          '',   // Quantity — not captured in Quotation Diary
+          '',   // Unit Cost
+          '',   // Margin %
+          '',   // Total Quote
+          cellStr(row, statusCol),
+        ]);
+        autoId++;
+      }
+    } catch (err) {
+      Logger.log('[Enquiry] Tab ' + sheet.getName() + ': ' + err);
+    }
+  });
+
+  return rows;
+}
+
+// ─── PRODUCTION ──────────────────────────────────────────────────────────────
+// Source: NEW ORDER BOOK — all monthly tabs
+// Structure: alternating row types —
+//   CLIENT ROW: DATE is set, DESCRIPTION = company name, no QTY
+//   ITEM ROW:   no DATE, DESCRIPTION = product spec, has THICK/QTY/WEIGHT
+function buildProduction() {
+  const ss   = SpreadsheetApp.openById(SS.ORDER_BOOK);
+  const rows = [];
+  let jobIdx = 1;
+
+  ss.getSheets().forEach(function(sheet) {
+    try {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 3) return;
+
+      // Find header row: first row with 3+ non-empty text cells
+      let headerRow = -1;
+      for (let i = 0; i < Math.min(data.length, 5); i++) {
+        const textCells = data[i].filter(function(c) {
+          return c && String(c).trim() && isNaN(Number(c)) && !(c instanceof Date);
+        });
+        if (textCells.length >= 3) { headerRow = i; break; }
+      }
+      if (headerRow === -1) return;
+
+      const headers     = data[headerRow].map(function(h) { return String(h).trim().toLowerCase(); });
+      const dateCol     = findCol(headers, ['date', 'date ']);
+      const descCol     = findCol(headers, ['description', 'desription', 'description ']);
+      const qtyCol      = findCol(headers, ['qty', 'qty ']);
+      const weightCol   = findCol(headers, ['wt', 'weight .1', 'weight ']);
+      const thickCol    = findCol(headers, ['thick', 'thick ']);
+      const processCol  = findCol(headers, ['process', 'process ']);
+      const prodCol     = findCol(headers, ['prod', 'prod ']);
+      const dispatchCol = findCol(headers, ['dispatch', 'dispacth', 'dispatch ']);
+
+      let currentClient   = '';
+      let currentDate     = '';
+      let currentStatus   = '';
+      let currentDispatch = '';
+
+      for (let i = headerRow + 1; i < data.length; i++) {
+        const row   = data[i];
+        const desc  = cellStr(row, descCol);
+        if (!desc) continue;
+
+        const dateVal = row[dateCol];
+        const hasDate = dateVal instanceof Date || (dateVal && String(dateVal).trim() !== '');
+        const qty     = qtyCol !== -1 ? row[qtyCol] : '';
+        const hasQty  = qty !== '' && qty !== null && !isNaN(Number(qty)) && Number(qty) > 0;
+
+        if (hasDate && !hasQty) {
+          // CLIENT ROW — update running state
+          currentClient   = desc;
+          currentDate     = dateVal instanceof Date ? fmtDate(dateVal) : String(dateVal);
+          const prodOk    = cellStr(row, prodCol).toUpperCase()    === 'OK';
+          const processOk = cellStr(row, processCol).toUpperCase() === 'OK';
+          currentStatus   = prodOk ? 'Complete' : processOk ? 'In-Progress' : 'Pending';
+          const dv        = dispatchCol !== -1 ? row[dispatchCol] : null;
+          currentDispatch = dv instanceof Date ? fmtDate(dv) : (dv ? String(dv) : '');
+
+        } else if (!hasDate && currentClient) {
+          // ITEM ROW — create production entry
+          const thick = cellStr(row, thickCol);
+          const stage = deriveStage(thick, cellStr(row, processCol));
+
+          // [Job ID, Client, Stage, Assigned To, Status, Start Date, Due Date, Est Hrs, Actual Hrs, Weight]
+          rows.push([
+            'JOB' + String(jobIdx).padStart(4, '0'),
+            currentClient,
+            stage,
+            '',
+            currentStatus,
+            currentDate,
+            currentDispatch,
+            '',
+            '',
+            cellStr(row, weightCol),
+          ]);
+          jobIdx++;
+        }
+      }
+    } catch (err) {
+      Logger.log('[Production] Tab ' + sheet.getName() + ': ' + err);
+    }
+  });
+
+  return rows;
+}
+
+// ─── PURCHASE ────────────────────────────────────────────────────────────────
+// Source: RAW MATERIAL — Sheet1
+// Columns: Quote (date), M.T, Qty (Kg), Thich, [supplier prices...], Amount, Supplier, Received
+function buildPurchase() {
+  const ss    = SpreadsheetApp.openById(SS.RAW_MATERIAL);
+  const sheet = ss.getSheets()[0];
+  const data  = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers     = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  const dateCol     = findCol(headers, ['quote', 'date']);
+  const materialCol = findCol(headers, ['m.t', 'material', 'mt']);
+  const qtyCol      = findCol(headers, ['qty (kg)', 'qty(kg)', 'qty', 'quantity']);
+  const thickCol    = findCol(headers, ['thich', 'thick', 'thickness']);
+  const amountCol   = findCol(headers, ['amount']);
+  const supplierCol = findCol(headers, ['supplier']);
+  const receivedCol = findCol(headers, ['received']);
+
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    const row      = data[i];
+    const material = cellStr(row, materialCol);
+    const supplier = cellStr(row, supplierCol);
+    if (!material || !supplier) continue;
+
+    const dateVal  = row[dateCol];
+    const dateStr  = dateVal instanceof Date ? fmtDate(dateVal) : cellStr(row, dateCol);
+    const recvVal  = receivedCol !== -1 ? row[receivedCol] : null;
+    const recvStr  = recvVal instanceof Date ? fmtDate(recvVal) : (recvVal ? String(recvVal) : '');
+    const qty      = cellStr(row, qtyCol);
+    const amount   = cellStr(row, amountCol);
+    const thick    = thickCol !== -1 ? cellStr(row, thickCol) : '';
+
+    const qtyNum = parseFloat(qty) || 0;
+    const amtNum = parseFloat(amount) || 0;
+    const rate   = (qtyNum > 0 && amtNum > 0) ? String(Math.round(amtNum / qtyNum)) : '';
+
+    // [PurchaseID, Date, Supplier, ItemID, ItemDesc, Qty, Rate, Amount, GST%, GSTAmt, Total, InvNo, InvDate, PayStatus, PaidAmt, JobRef]
+    rows.push([
+      'PUR' + String(i).padStart(4, '0'),
+      dateStr,
+      supplier,
+      '',
+      material + (thick ? ' ' + thick : ''),
+      qty,
+      rate,
+      amount,
+      '18',    // default GST — update if tracked separately
+      '',
+      amount,
+      '',
+      recvStr,
+      'Paid',
+      amount,
+      '',
+    ]);
+  }
+
+  return rows;
+}
+
+// ─── PAYMENT ─────────────────────────────────────────────────────────────────
+// Source: DEBIT CREDIT — Sheet1 (Sundry Debtors outstanding summary)
+// Columns: PARTY NAME, AMOUNT, DUE DATE, STATUS
+function buildPayment() {
+  const ss    = SpreadsheetApp.openById(SS.DEBIT_CREDIT);
+  let sheet   = ss.getSheetByName('Sheet1');
+  if (!sheet) sheet = ss.getSheets()[0];
+
+  const data = sheet.getDataRange().getValues();
+
+  // Locate header row by finding row that contains 'PARTY NAME'
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(data.length, 12); i++) {
+    const joined = data[i].map(function(c) { return String(c).toUpperCase(); }).join('|');
+    if (joined.includes('PARTY NAME') || joined.includes('PARTY  NAME')) {
+      headerRow = i;
+      break;
+    }
+  }
+  if (headerRow === -1) return [];
+
+  const headers    = data[headerRow].map(function(h) { return String(h).trim().toLowerCase(); });
+  const partyCol   = findCol(headers, ['party name', 'party  name', 'name']);
+  const amountCol  = findCol(headers, ['amount']);
+  const dueDateCol = findCol(headers, ['due date', 'due  date', 'duedate']);
+  const statusCol  = findCol(headers, ['status']);
+
+  const rows = [];
+  let idx = 1;
+
+  for (let i = headerRow + 1; i < data.length; i++) {
+    const row    = data[i];
+    const party  = cellStr(row, partyCol);
+    const amount = cellStr(row, amountCol);
+    if (!party || !amount) continue;
+
+    const dv     = dueDateCol !== -1 ? row[dueDateCol] : null;
+    const dueStr = dv instanceof Date ? fmtDate(dv) : (dv ? String(dv) : '');
+
+    // [Payment ID, Date, Type, Enquiry Ref, Client Name, Amount, Mode, Reference, Receipt No, Notes]
+    rows.push([
+      'PAY' + String(idx).padStart(4, '0'),
+      dueStr,
+      'Receivable',
+      '',
+      party,
+      amount,
+      cellStr(row, statusCol),  // CHQ, etc.
+      '',
+      '',
+      '',
+    ]);
+    idx++;
+  }
+
+  return rows;
+}
+
+// ─── DISPATCH ────────────────────────────────────────────────────────────────
+// Source: NEW ORDER BOOK — client rows where DISPATCH column has a date
+function buildDispatch() {
+  const ss   = SpreadsheetApp.openById(SS.ORDER_BOOK);
+  const rows = [];
+  let dispIdx = 1;
+
+  ss.getSheets().forEach(function(sheet) {
+    try {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 3) return;
+
+      let headerRow = -1;
+      for (let i = 0; i < Math.min(data.length, 5); i++) {
+        const textCells = data[i].filter(function(c) {
+          return c && String(c).trim() && isNaN(Number(c)) && !(c instanceof Date);
+        });
+        if (textCells.length >= 3) { headerRow = i; break; }
+      }
+      if (headerRow === -1) return;
+
+      const headers     = data[headerRow].map(function(h) { return String(h).trim().toLowerCase(); });
+      const dateCol     = findCol(headers, ['date', 'date ']);
+      const descCol     = findCol(headers, ['description', 'desription', 'description ']);
+      const qtyCol      = findCol(headers, ['qty', 'qty ']);
+      const dispatchCol = findCol(headers, ['dispatch', 'dispacth', 'dispatch ']);
+
+      for (let i = headerRow + 1; i < data.length; i++) {
+        const row     = data[i];
+        const desc    = cellStr(row, descCol);
+        if (!desc) continue;
+
+        const dateVal = row[dateCol];
+        const hasDate = dateVal instanceof Date || (dateVal && String(dateVal).trim() !== '');
+        const qty     = qtyCol !== -1 ? row[qtyCol] : '';
+        const hasQty  = qty !== '' && qty !== null && !isNaN(Number(qty)) && Number(qty) > 0;
+        if (!hasDate || hasQty) continue; // only process client rows
+
+        const dispVal = dispatchCol !== -1 ? row[dispatchCol] : null;
+        if (!(dispVal instanceof Date)) continue; // only rows with actual dispatch dates
+
+        // [Dispatch ID, Date, Job Ref, Client Name, DelivMode, DelivAddr, ChallanNo, VehicleNo,
+        //  Transporter, Freight, Weight, NoPkgs, ReceivedBy, ReceiptDate, PODLink, Status]
+        rows.push([
+          'DSP' + String(dispIdx).padStart(4, '0'),
+          fmtDate(dispVal),
+          '',
+          desc,
+          '', '', '', '', '', '', '', '', '', '', '',
+          'Dispatched',
+        ]);
+        dispIdx++;
+      }
+    } catch (err) {
+      Logger.log('[Dispatch] Tab ' + sheet.getName() + ': ' + err);
+    }
+  });
+
+  return rows;
+}
+
+// ─── PRICING ─────────────────────────────────────────────────────────────────
+// Source: RAW MATERIAL — per-kg rate derived from Amount / Qty per purchase row
+function buildPricing() {
+  const ss    = SpreadsheetApp.openById(SS.RAW_MATERIAL);
+  const sheet = ss.getSheets()[0];
+  const data  = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers     = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  const materialCol = findCol(headers, ['m.t', 'material', 'mt']);
+  const thickCol    = findCol(headers, ['thich', 'thick', 'thickness']);
+  const supplierCol = findCol(headers, ['supplier']);
+  const amountCol   = findCol(headers, ['amount']);
+  const qtyCol      = findCol(headers, ['qty (kg)', 'qty(kg)', 'qty']);
+  const dateCol     = findCol(headers, ['quote', 'date']);
+
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    const row      = data[i];
+    const material = cellStr(row, materialCol);
+    const supplier = cellStr(row, supplierCol);
+    if (!material || !supplier) continue;
+
+    const qty    = parseFloat(cellStr(row, qtyCol)) || 0;
+    const amount = parseFloat(cellStr(row, amountCol)) || 0;
+    const rate   = (qty > 0 && amount > 0) ? String(Math.round(amount / qty)) : '';
+    const thick  = thickCol !== -1 ? cellStr(row, thickCol) : '';
+    const dateVal = row[dateCol];
+    const dateStr = dateVal instanceof Date ? fmtDate(dateVal) : cellStr(row, dateCol);
+    const code    = material.replace(/\s+/g, '_').toUpperCase() + (thick ? '_' + thick : '');
+
+    // [Material Code, Supplier, Current Rate, Last Updated, Tax %]
+    rows.push([code, supplier, rate, dateStr, '18']);
+  }
+
+  return rows;
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function findCol(headers, candidates) {
+  for (let c = 0; c < candidates.length; c++) {
+    const idx = headers.indexOf(candidates[c]);
+    if (idx !== -1) return idx;
+  }
+  // Partial match fallback
+  for (let c = 0; c < candidates.length; c++) {
+    for (let h = 0; h < headers.length; h++) {
+      if (headers[h].length > 0 &&
+          (headers[h].includes(candidates[c]) || candidates[c].includes(headers[h]))) {
+        return h;
+      }
+    }
+  }
+  return -1;
+}
+
+function cellStr(row, col) {
+  if (col === -1 || col >= row.length) return '';
+  const v = row[col];
+  if (v === null || v === undefined || v === '') return '';
+  if (v instanceof Date) return fmtDate(v);
+  return String(v).trim();
+}
+
+function fmtDate(d) {
+  try {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  } catch (e) {
+    return String(d);
+  }
+}
+
+function deriveStage(thick, process) {
+  if (process && process.toUpperCase() === 'OK') return 'Dispatch';
+  if (!thick) return 'Cutting';
+  const t = thick.toUpperCase();
+  if (t.includes('GP')) return 'Paint';
+  if (t.includes('MS')) return 'Welding';
+  return 'Cutting';
+}
+
+// ─── INSPECT HELPER ──────────────────────────────────────────────────────────
 /**
- * inspectHeaders — run manually in Apps Script editor (Run > inspectHeaders).
- * Set inspectSpreadsheetId to each ID appearing in SHEET_CONFIG and run once per ID.
- * Prints all tab names and column headers to the log (View > Logs).
- * Use the output to fill in SHEET_CONFIG.map entries and tabName values.
+ * Run manually in Apps Script editor to inspect tab names and column headers.
+ * Change inspectId to SS.QUOTATION_DIARY, SS.ORDER_BOOK etc. to inspect each file.
+ * Run → View Execution Log to see output.
  */
 function inspectHeaders() {
-  const inspectSpreadsheetId = 'REPLACE_WITH_SPREADSHEET_ID_TO_INSPECT';
-  const ss = SpreadsheetApp.openById(inspectSpreadsheetId);
+  const inspectId = SS.SHEET_STOCK; // ← change to any SS.* value
+  const ss = SpreadsheetApp.openById(inspectId);
   ss.getSheets().forEach(function(sheet) {
-    var name     = sheet.getName();
-    var lastCol  = sheet.getLastColumn();
-    if (lastCol === 0) {
-      Logger.log('\n=== ' + name + ' === (empty)');
-      return;
-    }
-    var firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    Logger.log('\n=== ' + name + ' ===');
-    firstRow.forEach(function(h, i) {
-      Logger.log('  [' + i + '] "' + h + '"');
-    });
+    const name    = sheet.getName();
+    const lastCol = sheet.getLastColumn();
+    if (lastCol === 0) { Logger.log('=== ' + name + ' === (empty)'); return; }
+    const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    Logger.log('=== ' + name + ' ===');
+    firstRow.forEach(function(h, i) { Logger.log('  [' + i + '] "' + h + '"'); });
   });
 }
