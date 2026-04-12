@@ -8,16 +8,14 @@
  *
  * CONTRACT: Each key in the JSON response includes a schema header row as row[0],
  * followed by data rows. Required by dashboard's dataTransform skipHeader.
- *
- * ⚠ VERIFY IDs marked below — they appear truncated. Confirm from each sheet's URL.
  */
 
 // ─── SPREADSHEET IDs ─────────────────────────────────────────────────────────
 const SS = {
   SHEET_STOCK:     '1JNiqcBlkk0Ay4HPcPgm04HeQAe65MlaPT2v1daI7eGI',
-  QUOTATION_DIARY: '1oT7p6imRNspBaVOcb96p8XyQs',      // ⚠ verify — appears truncated (26 chars, expected ~44)
+  QUOTATION_DIARY: '1oT7p6imRNspBaVOcb96p8XyQs-p8S7Ch9QR-AZEoG9g',
   ORDER_BOOK:      '1pxR0owvYY8BsAdqwdPHfwTet1nFrSPvI9BsvILuo-1I',
-  RAW_MATERIAL:    '1wH9_0Ao2ayGR1XY_LaZ6e9Lmg00qGWUqm0mXBg',    // ⚠ verify — appears truncated (40 chars, expected ~44)
+  RAW_MATERIAL:    '1wH9_0Ao2ayGR1XY_LaZ6e9Lmg00qGWUqm0mXBg-fFMY',
   DEBIT_CREDIT:    '1Sy0Yd8nt6OyEXCKkGVfx1Wi8o_rOXnoIlemxBblrzwE',
 };
 
