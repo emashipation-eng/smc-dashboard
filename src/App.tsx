@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import DashboardShell from './components/layout/DashboardShell'
 import FinancialDashboard from './pages/FinancialDashboard'
 import OperationsDashboard from './pages/OperationsDashboard'
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/sales"      element={<SalesDashboard />} />
         <Route path="/settings"   element={<SettingsPage />} />
       </Routes>
+      <Analytics />
     </DashboardShell>
   )
 }
